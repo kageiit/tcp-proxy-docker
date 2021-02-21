@@ -1,14 +1,29 @@
 #!/usr/bin/env bash
 
-if [ "$#" -ne 2 ]; then
-    echo "usage: $(basename $0) host port"
-    exit 1
-fi
+port_file=$(mktemp)
+proxy_pid_file=$(mktemp)
 
-HOST="$1"
-PORT="$2"
+echo '0' > "$port_file"
+echo '0' > "$proxy_pid_file"
+BUFFER_SIZE=${BUFFER_SIZE:-65535}
 
-LISTEN_PORT=${LISTEN_PORT:-${PORT}}
+while true; do (
+    new_port=$(curl "$PORT_VALUE_URL" 2>/dev/null)
+    port=$(cat "$port_file")
+    if [[ "$new_port" != "$port" ]]; then
+        echo "Port changed from $port to $new_port"
+        echo "$new_port" > "$port_file"
 
-echo "relay TCP/IP connections on :${LISTEN_PORT} to ${HOST}:${PORT}"
-exec socat TCP-LISTEN:${LISTEN_PORT},fork,reuseaddr TCP:${HOST}:${PORT}
+        proxy_pid=$(cat "$proxy_pid_file")
+        if [[ $proxy_pid -ne 0 ]]; then
+            kill "$proxy_pid"
+        fi
+
+        echo "relay TCP/IP connections on :${LISTEN_PORT} to ${HOST}:${new_port}"
+        socat -b"$BUFFER_SIZE" TCP-LISTEN:${LISTEN_PORT},fork,reuseaddr TCP:${HOST}:${new_port} &
+        echo "$!" > "$proxy_pid_file"
+
+        echo "Using new port $new_port"
+    fi
+    sleep "$SLEEP_TIME"
+); done
