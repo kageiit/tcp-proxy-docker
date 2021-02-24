@@ -20,7 +20,7 @@ while true; do (
         fi
 
         echo "relay TCP/IP connections on :${LISTEN_PORT} to ${HOST}:${new_port}"
-        socat -b"$BUFFER_SIZE" TCP-LISTEN:${LISTEN_PORT},fork,reuseaddr TCP:${HOST}:${new_port} &
+        socat -b"$BUFFER_SIZE" TCP4-LISTEN:${LISTEN_PORT},fork,reuseaddr TCP4:${HOST}:${new_port} &
         echo "$!" > "$proxy_pid_file"
 
         echo "Using new port $new_port"
